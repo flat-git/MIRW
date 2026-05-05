@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Conda
+*.conda
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data (large files)
+data/raw/maven/*
+data/raw/kaggle_oee/*
+data/processed/*
+!data/raw/maven/.gitkeep
+!data/raw/kaggle_oee/.gitkeep
+!data/processed/.gitkeep
+
+# Reports (generated)
+reports/llm_logs/*
+reports/*.md
+reports/figures/*
+!reports/llm_logs/.gitkeep
+!reports/figures/.gitkeep
+
+# Model files
+*.bin
+*.onnx
+.claude/

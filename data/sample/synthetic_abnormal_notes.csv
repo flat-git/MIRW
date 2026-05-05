@@ -1,0 +1,36 @@
+event_id,line_id,machine_id,product_id,operator_id,shift,downtime_min,raw_reason,raw_note,source_dataset,is_synthetic_note
+E001,L01,AOI-01,PCB-A01,OP-001,A,28,Quality check,AOI 首件不过，工程师重新调整检测参数，等待复判 28 分钟后恢复生产。,synthetic,TRUE
+E002,L01,SPM-02,PCB-A02,OP-003,A,15,Equipment fault,贴片机吸嘴堵塞，抛料率升高，更换吸嘴后恢复。,synthetic,TRUE
+E003,L02,SPM-01,PCB-B01,OP-005,B,32,Material issue,来料标签与工单不一致，品质复核后放行，等待 32 分钟。,synthetic,TRUE
+E004,L01,SPM-02,PCB-A01,OP-002,A,18,Recipe error,换线后 recipe 调用错误，重新确认程序版本后恢复。,synthetic,TRUE
+E005,L02,ICT-01,PCB-B02,OP-006,B,22,Equipment fault,测试治具接触不良，维修后恢复生产。,synthetic,TRUE
+E006,L01,SPM-01,PCB-A03,OP-001,A,10,Minor stop,nozzle 污染导致贴装异常，清洁后恢复。,synthetic,TRUE
+E007,L01,AOI-02,PCB-A01,OP-004,A,35,Quality defect,AOI 检出虚焊，返修后重新过炉，共等待 35 分钟。,synthetic,TRUE
+E008,L03,REF-01,PCB-C01,OP-008,C,45,Equipment failure,回流炉温度异常波动，等待设备维修 45 分钟。,synthetic,TRUE
+E009,L01,SPM-02,PCB-A02,OP-003,A,12,Feeder issue,飞达卡料导致抛料，清理飞达后恢复。,synthetic,TRUE
+E010,L02,AOI-01,PCB-B01,OP-005,B,20,Quality check,首件 AOI 检测不过，调整贴装坐标后重新确认。,synthetic,TRUE
+E011,L01,SPM-01,PCB-A01,OP-002,A,18,Equipment fault,吸嘴堵塞导致抛料，维修员更换 nozzle。,synthetic,TRUE
+E012,L02,SPM-02,PCB-B02,OP-006,B,25,Material issue,来料电阻混料，品质确认后退料重新领料。,synthetic,TRUE
+E013,L01,ICT-01,PCB-A03,OP-001,A,30,Test fixture,ICT 测试探针磨损，更换探针后恢复测试。,synthetic,TRUE
+E014,L03,SPM-01,PCB-C01,OP-007,C,15,Changeover,换线准备不充分，找料延误 15 分钟。,synthetic,TRUE
+E015,L01,AOI-01,PCB-A01,OP-004,A,22,Quality defect,AOI 误判率升高，工程师重新标定检测参数。,synthetic,TRUE
+E016,L02,REF-01,PCB-B01,OP-005,B,40,Equipment failure,回流炉链条卡顿，停机维修 40 分钟。,synthetic,TRUE
+E017,L01,SPM-02,PCB-A02,OP-003,A,8,Minor stop,吸嘴真空度不足，更换吸嘴胶圈后恢复。,synthetic,TRUE
+E018,L03,AOI-02,PCB-C01,OP-008,C,28,Quality check,首件确认流程延误，等待工程师到场 28 分钟。,synthetic,TRUE
+E019,L01,SPM-01,PCB-A01,OP-001,A,20,Recipe error,程序版本不匹配，调用正确版本后恢复生产。,synthetic,TRUE
+E020,L02,SPM-02,PCB-B02,OP-006,B,35,Material issue,锡膏过期未及时更换，更换锡膏后等待回温 35 分钟。,synthetic,TRUE
+E021,L01,ICT-01,PCB-A03,OP-002,A,16,Test fixture,测试治具弹簧失效，更换后恢复。,synthetic,TRUE
+E022,L03,SPM-01,PCB-C01,OP-007,C,12,Feeder issue,飞达送料位置偏移，重新校准后恢复。,synthetic,TRUE
+E023,L01,AOI-01,PCB-A01,OP-004,A,19,Quality defect,焊点桥连检出，返修后重新过 AOI。,synthetic,TRUE
+E024,L02,REF-01,PCB-B01,OP-005,B,50,Equipment failure,回流炉氮气浓度异常，等待维修 50 分钟。,synthetic,TRUE
+E025,L01,SPM-02,PCB-A02,OP-003,A,14,Minor stop,贴片机视觉系统误识别，重启后恢复。,synthetic,TRUE
+E026,L03,AOI-02,PCB-C01,OP-008,C,26,Quality check,AOI 参数漂移，重新校准检测参数。,synthetic,TRUE
+E027,L01,SPM-01,PCB-A01,OP-001,A,11,Changeover,换线时间超计划 11 分钟，原因找料延迟。,synthetic,TRUE
+E028,L02,SPM-02,PCB-B02,OP-006,B,33,Material issue,来料 PCB 板弯翘，品质判定后降级使用。,synthetic,TRUE
+E029,L01,ICT-01,PCB-A03,OP-002,A,24,Test fixture,ICT 程序版本错误，调用正确版本后恢复。,synthetic,TRUE
+E030,L03,SPM-01,PCB-C01,OP-007,C,17,Equipment fault,贴片机马达异响，维修检查后恢复。,synthetic,TRUE
+E031,L01,AOI-01,PCB-A01,OP-004,A,21,Quality defect,立碑缺陷检出，调整回流焊温度曲线后恢复。,synthetic,TRUE
+E032,L02,REF-01,PCB-B01,OP-005,B,38,Equipment failure,回流炉热风循环异常，更换风扇后恢复。,synthetic,TRUE
+E033,L01,SPM-02,PCB-A02,OP-003,A,9,Minor stop,抛料率突然升高，检查发现 nozzle 磨损，更换后恢复。,synthetic,TRUE
+E034,L03,AOI-02,PCB-C01,OP-008,C,30,Quality check,来料外观确认延误，等待 IQC 判定 30 分钟。,synthetic,TRUE
+E035,L01,SPM-01,PCB-A01,OP-001,A,13,Recipe error,贴装坐标偏移，修正程序后恢复。,synthetic,TRUE

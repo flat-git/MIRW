@@ -1,0 +1,24 @@
+source_name: generic_excel_demo
+
+production_run:
+  run_id: Batch ID
+  line_id: Line
+  product_id: Product
+  operator_id: Operator
+  shift: Shift
+  planned_time_min: Planned Minutes
+  runtime_min: Runtime Minutes
+  downtime_min: Downtime Minutes
+  target_output: Target Output
+  actual_output: Actual Output
+  good_output: Good Output
+  scrap_output: Scrap Output
+
+downtime_event:
+  event_id: Event ID
+  run_id: Batch ID
+  downtime_min: Downtime Minutes
+  raw_reason: Downtime Reason
+  raw_note: Note
+  machine_id: Machine
+  shift: Shift

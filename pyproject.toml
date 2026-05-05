@@ -1,0 +1,27 @@
+[project]
+name = "manufacturing-issue-review-workbench"
+version = "0.1.0"
+description = "制造现场异常复盘与改善闭环工作台"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "scikit-learn>=1.3",
+    "plotly>=5.15",
+    "streamlit>=1.30",
+    "openpyxl>=3.1",
+    "pydantic>=2.0",
+    "python-dotenv>=1.0",
+    "pyyaml>=6.0",
+    "sentence-transformers>=2.2",
+    "faiss-cpu>=1.7",
+    "litellm>=1.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
