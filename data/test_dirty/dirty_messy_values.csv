@@ -1,0 +1,9 @@
+Machine,Downtime,Reason,Operator,Shift,Date,Notes,Scrap
+MX-1001,48,Belt slipped off,tech_j,A,2024-06-03,Fixed alignment,5
+MX-2002,N/A,Voltage drop,tech_k,B,2024/06/04,Reset breaker,—
+MX-3006,80,Blade jammed,tech_l,A,2024.06.05,Lubricated blade,12
+MX-4009,"1,500",Operator error,tech_m,B,Jun 6 2024,Restarted,unknown
+MX-5003,110,Scheduled maintenance,team_n,A,2024-06-07,Calibration,0
+MX-6001,-,Sensor misread,tech_o,B,06/08/2024,Realigned,TBD
+MX-7002,35,Bearing noise,tech_p,A,2024-06-09,Replaced bearing,null
+MX-8003,45,Cleaning,tech_q,B,2024-06-10,Regular cleanup,3

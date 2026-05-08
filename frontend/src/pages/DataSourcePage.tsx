@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { listDatasets, loadDataset, uploadDataset } from '../api/datasets';
+import { listDatasets, loadDataset, analyzeFile, importFile } from '../api/datasets';
+import type { AnalyzeResponse } from '../api/datasets';
 import type { DatasetListItem } from '../types';
+import ColumnMapperTable from '../components/ColumnMapperTable';
 
 const sources = [
   { id: 'maven', name: 'Maven Manufacturing', desc: '汽水灌装线，38 批次，61 停机事件' },
@@ -10,13 +12,20 @@ const sources = [
   { id: 'synthetic', name: 'Synthetic Demo', desc: '合成异常备注和改善项，用于演示文本流程' },
 ];
 
+type ImportStep = 'upload' | 'mapping' | 'result';
+
 export default function DataSourcePage() {
   const navigate = useNavigate();
   const [datasets, setDatasets] = useState<DatasetListItem[]>([]);
   const [loading, setLoading] = useState('');
   const [error, setError] = useState('');
+
+  // 智能导入状态
+  const [step, setStep] = useState<ImportStep>('upload');
   const [file, setFile] = useState<File | null>(null);
-  const [mapping, setMapping] = useState('');
+  const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null);
+  const [mappings, setMappings] = useState<Record<string, string>>({});
+  const [importResult, setImportResult] = useState<Record<string, unknown> | null>(null);
 
   const refresh = () => listDatasets().then(setDatasets).catch(() => setDatasets([]));
 
@@ -38,20 +47,56 @@ export default function DataSourcePage() {
     }
   };
 
-  const handleUpload = async () => {
+  // Step 1: 上传并分析
+  const handleAnalyze = async () => {
     if (!file) return;
-    setLoading('upload');
+    setLoading('analyze');
     setError('');
     try {
-      const result = await uploadDataset(file, mapping);
-      await refresh();
-      navigate(`/datasets/${result.dataset_id}`);
+      const result = await analyzeFile(file);
+      setAnalysis(result);
+      // 初始化 mappings：用 LLM 建议的映射
+      const initMappings: Record<string, string> = {};
+      for (const m of result.suggested_mappings) {
+        if (m.target_field) {
+          initMappings[m.source_column] = m.target_field;
+        }
+      }
+      setMappings(initMappings);
+      setStep('mapping');
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : '上传失败');
+      setError(e instanceof Error ? e.message : '分析失败');
     } finally {
       setLoading('');
     }
   };
+
+  // Step 2: 确认导入
+  const handleImport = async () => {
+    if (!analysis) return;
+    setLoading('import');
+    setError('');
+    try {
+      const confirmedMappings = analysis.columns.map(col => ({
+        source_column: col.name,
+        target_field: mappings[col.name] || null,
+      }));
+      const result = await importFile(analysis.analysis_id, confirmedMappings);
+      setImportResult(result as unknown as Record<string, unknown>);
+      setStep('result');
+      await refresh();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : '导入失败');
+    } finally {
+      setLoading('');
+    }
+  };
+
+  const handleMappingChange = (sourceColumn: string, targetField: string) => {
+    setMappings(prev => ({ ...prev, [sourceColumn]: targetField }));
+  };
+
+  const mappedCount = Object.values(mappings).filter(v => v).length;
 
   return (
     <div>
@@ -60,6 +105,7 @@ export default function DataSourcePage() {
 
       {error && <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded p-3 mb-4">{error}</div>}
 
+      {/* 历史导入记录 */}
       <section className="bg-white border rounded-lg overflow-hidden mb-6">
         <div className="px-4 py-3 border-b">
           <h3 className="font-semibold text-slate-700">历史导入记录</h3>
@@ -75,7 +121,7 @@ export default function DataSourcePage() {
                 <th className="text-right px-4 py-2 text-xs text-slate-500 font-medium">批次</th>
                 <th className="text-right px-4 py-2 text-xs text-slate-500 font-medium">事件</th>
                 <th className="text-left px-4 py-2 text-xs text-slate-500 font-medium">校验</th>
-                <th className="text-right px-4 py-2 text-xs text-slate-500 font-medium">Open</th>
+                <th className="text-right px-4 py-2 text-xs text-slate-500 font-medium"></th>
               </tr>
             </thead>
             <tbody>
@@ -94,9 +140,7 @@ export default function DataSourcePage() {
                     </span>
                   </td>
                   <td className="px-4 py-2 text-right">
-                    <Link to={`/datasets/${d.dataset_id}`} className="text-blue-600 hover:text-blue-700 text-sm">
-                      进入
-                    </Link>
+                    <Link to={`/datasets/${d.dataset_id}`} className="text-blue-600 hover:text-blue-700 text-sm">进入</Link>
                   </td>
                 </tr>
               ))}
@@ -106,16 +150,13 @@ export default function DataSourcePage() {
       </section>
 
       <section className="grid grid-cols-2 gap-6">
+        {/* 内置数据源 */}
         <div className="bg-white border rounded-lg p-4">
-          <h3 className="font-semibold text-slate-700 mb-3">新建内置数据源导入</h3>
+          <h3 className="font-semibold text-slate-700 mb-3">内置数据源</h3>
           <div className="grid grid-cols-2 gap-3">
             {sources.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => handleLoad(s.id)}
-                disabled={!!loading}
-                className="text-left p-4 rounded-lg border hover:border-blue-300 hover:bg-blue-50 disabled:opacity-50"
-              >
+              <button key={s.id} onClick={() => handleLoad(s.id)} disabled={!!loading}
+                className="text-left p-4 rounded-lg border hover:border-blue-300 hover:bg-blue-50 disabled:opacity-50">
                 <div className="font-semibold text-slate-800">{s.name}</div>
                 <div className="text-xs text-slate-500 mt-1">{s.desc}</div>
                 {loading === s.id && <div className="text-xs text-blue-500 mt-2">导入中...</div>}
@@ -124,28 +165,73 @@ export default function DataSourcePage() {
           </div>
         </div>
 
+        {/* 智能导入 3 步向导 */}
         <div className="bg-white border rounded-lg p-4">
-          <h3 className="font-semibold text-slate-700 mb-3">上传 Excel / CSV</h3>
-          <input
-            type="file"
-            accept=".csv,.xlsx,.xls"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="block w-full text-sm text-slate-600 mb-3"
-          />
-          <label className="text-xs text-slate-500 block mb-1">YAML 字段映射（可选）</label>
-          <textarea
-            value={mapping}
-            onChange={(e) => setMapping(e.target.value)}
-            className="w-full h-32 border rounded px-3 py-2 text-xs font-mono"
-            placeholder="留空则使用 data/sample/generic_excel_mapping.yaml"
-          />
-          <button
-            onClick={handleUpload}
-            disabled={!file || !!loading}
-            className="mt-3 bg-blue-500 text-white px-4 py-2 rounded text-sm hover:bg-blue-600 disabled:opacity-50"
-          >
-            {loading === 'upload' ? '上传导入中...' : '上传并导入'}
-          </button>
+          <h3 className="font-semibold text-slate-700 mb-3">智能导入（LLM 辅助列映射）</h3>
+
+          {/* Step 指示器 */}
+          <div className="flex gap-2 mb-4">
+            {['上传', '确认映射', '导入结果'].map((label, i) => (
+              <div key={label} className={`flex items-center gap-1 text-xs ${['upload','mapping','result'].indexOf(step) >= i ? 'text-blue-600 font-medium' : 'text-slate-400'}`}>
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-xs ${['upload','mapping','result'].indexOf(step) >= i ? 'bg-blue-500' : 'bg-slate-300'}`}>{i + 1}</span>
+                {label}
+              </div>
+            ))}
+          </div>
+
+          {/* Step 1: 上传 */}
+          {step === 'upload' && (
+            <div>
+              <input type="file" accept=".csv,.xlsx,.xls"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                className="block w-full text-sm text-slate-600 mb-3" />
+              <p className="text-xs text-slate-400 mb-3">支持任意列名和脏数据，系统会自动识别字段含义。</p>
+              <button onClick={handleAnalyze} disabled={!file || !!loading}
+                className="bg-blue-500 text-white px-4 py-2 rounded text-sm hover:bg-blue-600 disabled:opacity-50">
+                {loading === 'analyze' ? '分析中...' : '开始分析'}
+              </button>
+            </div>
+          )}
+
+          {/* Step 2: 确认映射 */}
+          {step === 'mapping' && analysis && (
+            <div>
+              <div className="text-xs text-slate-500 mb-2">
+                {analysis.file_name} · {analysis.total_rows} 行 · 已映射 {mappedCount}/{analysis.columns.length} 列
+                {analysis.unmapped_columns.length > 0 && <span className="text-amber-600"> · {analysis.unmapped_columns.length} 列未识别</span>}
+              </div>
+              <ColumnMapperTable analysis={analysis} mappings={mappings} onChange={handleMappingChange} />
+              <div className="flex gap-2 mt-3">
+                <button onClick={() => { setStep('upload'); setAnalysis(null); }}
+                  className="px-3 py-1.5 rounded text-sm bg-gray-100 text-slate-600 hover:bg-gray-200">返回</button>
+                <button onClick={handleImport} disabled={!!loading}
+                  className="bg-blue-500 text-white px-4 py-2 rounded text-sm hover:bg-blue-600 disabled:opacity-50">
+                  {loading === 'import' ? '导入中...' : '确认导入'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: 导入结果 */}
+          {step === 'result' && importResult && (
+            <div>
+              <div className="text-sm text-green-700 bg-green-50 border border-green-200 rounded p-3 mb-3">
+                导入成功！数据集 ID: <span className="font-mono">{String(importResult.dataset_id)}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                <div className="bg-slate-50 rounded p-2"><span className="text-slate-500">事件数:</span> {String(importResult.event_count)}</div>
+                <div className="bg-slate-50 rounded p-2"><span className="text-slate-500">批次:</span> {String(importResult.run_count)}</div>
+              </div>
+              <button onClick={() => navigate(`/datasets/${importResult.dataset_id}`)}
+                className="w-full bg-blue-500 text-white px-4 py-2 rounded text-sm hover:bg-blue-600">
+                进入数据集
+              </button>
+              <button onClick={() => { setStep('upload'); setFile(null); setAnalysis(null); setImportResult(null); }}
+                className="w-full mt-2 px-4 py-2 rounded text-sm bg-gray-100 text-slate-600 hover:bg-gray-200">
+                继续导入
+              </button>
+            </div>
+          )}
         </div>
       </section>
     </div>
