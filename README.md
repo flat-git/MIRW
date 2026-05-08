@@ -8,111 +8,105 @@
 
 成熟系统可以记录停机、产量、质量异常，但从"原始事件记录"到"可复盘、可分类、可跟踪、可汇报的改善材料"之间，仍然存在大量人工整理工作。本项目的目标是把这段人工整理流程标准化、工具化。
 
-## 数据源说明
-
-| 数据源 | 来源 | 用途 |
-|--------|------|------|
-| Maven Manufacturing Downtime | Maven Analytics（真实数据） | 汽水灌装线批次生产 + 停机事件分析 |
-| GoMask Manufacturing Downtime Logs | GoMask（真实数据） | 200 条制造设备停机日志，含英文异常描述文本 |
-| 合成异常备注 | `data/sample/synthetic_abnormal_notes.csv` | 演示文本标准化、相似检索流程 |
-| 合成改善项 | `data/sample/synthetic_action_items.csv` | 演示改善闭环跟踪 |
-
-### Maven 数据结构
-
-原始数据为 Excel 文件（4 个 sheet）：
-
-- **Line productivity** — 38 个批次：Date, Product, Batch, Operator, Start Time, End Time
-- **Products** — 产品表：OR-600 (Orange), LE-600 (Lemon lime), CO-600 (Cola), 等
-- **Downtime factors** — 12 类停机原因编码（Emergency stop, Batch change, Machine failure, 等）
-- **Line downtime** — 每个批次 × 每类原因的停机分钟数（宽表）
-
-### GoMask 数据结构
-
-CSV 文件，200 条停机事件，16 个字段：
-
-- `downtime_id` — 唯一事件 ID
-- `machine_id` / `machine_name` — 设备标识（131 台设备，67 种名称）
-- `location` — 位置（21 个：Assembly Line A/B/C, Welding Bay, Cutting Room, 等）
-- `downtime_start` / `downtime_end` / `duration_minutes` — 停机时间
-- `downtime_type` — 5 类停机原因（mechanical, electrical, operator_error, scheduled_maintenance, other）
-- `cause_description` — 异常描述文本（**支持 LLM 标准化和相似检索**）
-- `resolution_actions` / `parts_replaced` — 处理措施（**支持改善项跟踪**）
-- `production_impact` — 影响描述（如 "24 units delayed, 48 min lost"）
-- `resolved_by` / `reported_by` — 人员信息
-
-### 两个数据源能力对比
-
-| 能力 | Maven | GoMask |
-|------|-------|--------|
-| 停机 Pareto 分析 | ✅ | ✅ |
-| IE 损失复盘 | ✅ | ✅ |
-| 按产品维度分析 | ✅ | ❌ 无产品字段 |
-| 按操作员维度分析 | ✅ | ❌ 非标准化 |
-| 按设备维度分析 | ❌ 无设备字段 | ✅ |
-| 按位置维度分析 | ❌ | ✅ |
-| Availability 计算 | ✅ | ❌ 无计划时间 |
-| 相似事件检索 | ❌ 无备注文本 | ✅ 有 cause_description |
-| 改善措施跟踪 | ❌ | ✅ 有 resolution_actions |
-| 完整 OEE | ❌ | ❌ |
-
-### 合成数据说明
-
-> `synthetic_abnormal_notes.csv` 和 `synthetic_action_items.csv` 为 **demo synthetic data**，
-> 不是企业真实生产数据，只用于演示异常文本标准化、相似事件检索和报告生成流程。
-
-## API 配置
-
-### LLM：DeepSeek API，双模型策略
-
-| 模型 | 用途 | 调用函数 |
-|------|------|---------|
-| `deepseek-v4-flash` | 轻量任务：异常备注标准化、关键词分类 | `call_llm_flash()` |
-| `deepseek-v4-pro` | 复杂任务：IE 周报、CAPA、5Why 草稿生成 | `call_llm_pro()` |
-
-### Embedding + Reranker：SiliconFlow API
-
-| 模型 | 用途 | 维度 |
-|------|------|------|
-| `Qwen/Qwen3-Embedding-4B` | 事件文本向量化 | 1024 维 |
-| `Qwen/Qwen3-Reranker-4B` | 检索结果精排 | — |
-
-两阶段检索流程：Embedding 余弦相似度粗筛（top 15） → Reranker 精排（top 3/5）
-
-LLM 只处理文本层工作，不参与数值计算：
-
-| 环节 | 谁来做 |
-|------|--------|
-| 数值计算 | Python（确定性） |
-| 异常备注标准化 | DeepSeek v4-flash |
-| 相似事件检索 | Qwen3-Embedding-4B + Qwen3-Reranker-4B |
-| 报告草稿生成 | DeepSeek v4-pro |
-| 最终判断 | **人工确认** |
-
 ## 系统架构
 
 ```
-Maven Manufacturing Downtime (Excel) + GoMask Downtime Logs (CSV)
-                ↓
-统一制造异常事件模型 (ProductionRun / DowntimeEvent / IssueReview)
-                ↓
-损失计算与 Pareto 分析 (Python 确定性计算)
-                ↓
-异常文本标准化 (DeepSeek v4-flash) + 相似事件检索 (Qwen3-Embedding + Reranker)
-                ↓
-改善项闭环跟踪
-                ↓
-IE 周报 / 质量 CAPA / 5Why 草稿生成 (DeepSeek v4-pro)
+┌─────────────────────────────────────────────────────────────┐
+│  React + TypeScript + Tailwind (前端)                        │
+│  数据源中心 → 损失分析 → 相似检索 → 报告生成 → 改善跟踪     │
+└──────────────────────┬──────────────────────────────────────┘
+                       │ HTTP /api/*
+┌──────────────────────┴──────────────────────────────────────┐
+│  FastAPI (后端 API 层)                                       │
+│  routers → services → state (内存缓存)                       │
+└──────────────────────┬──────────────────────────────────────┘
+                       │ Python import
+┌──────────────────────┴──────────────────────────────────────┐
+│  src/ (核心领域逻辑)                                          │
+│  adapters / metrics / text / reporting / actions / models    │
+└─────────────────────────────────────────────────────────────┘
+                       │
+┌──────────────────────┴──────────────────────────────────────┐
+│  API 服务                                                     │
+│  DeepSeek v4-flash/pro (LLM) + SiliconFlow (Embedding)      │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-## Canonical Data Model
+## 核心功能
 
-三个核心 Pydantic 模型：
+### 1. 数据导入（含脏数据智能导入）
 
-- **ProductionRun** — 生产批次记录（product、operator、时间、停机汇总）
-- **DowntimeEvent** — 停机/异常事件记录（原因、停机分钟、批次关联）
-- **IssueReview** — 复盘与改善项记录（对策、责任人、状态、复发标记）
+**内置数据源：**
+- Maven Manufacturing Downtime（汽水灌装线，38 批次，61 停机事件）
+- GoMask Downtime Logs（多设备车间，200 停机事件，131 台设备）
 
-详见 `src/models/canonical.py`。
+**智能导入（LLM 辅助，支持任意脏数据）：**
+- 上传任意结构的 CSV/Excel（列名不同、含脏值、格式混乱均可）
+- LLM 自动识别列名含义（支持中英文混合列名）
+- Python 自动清洗脏值（N/A、千分位逗号、单位后缀、混合日期格式）
+- 用户确认列映射后导入
+
+支持的脏数据场景：
+
+| 场景 | 示例 | 处理方式 |
+|------|------|---------|
+| 列名不同 | `停机时长(分钟)` → `downtime_min` | LLM 自动映射 |
+| 脏值 | `N/A`, `-`, `无`, `TBD` | Python 正则归一化为 null |
+| 千分位逗号 | `1,500` → `1500` | Python 自动处理 |
+| 单位后缀 | `80 min` → `80` | Python 正则去除 |
+| 混合日期 | `2024/06/04`, `Jun 6 2024` | pandas 多格式解析 |
+| 重复行 | 完全重复的行 | 自动去重 |
+
+### 2. 停机损失分析
+
+- 总停机时间、停机比率、产线效率
+- Top Loss Pareto（柱状图 + 累计比率折线）
+- 按产品/设备/操作员/位置维度分布
+
+### 3. 相似事件检索
+
+- Qwen3-Embedding-4B（1024 维向量）粗筛
+- Qwen3-Reranker-4B 精排
+- 两阶段检索，输入异常描述即可找到历史相似事件
+
+### 4. 报告生成
+
+- IE 改善复盘周报（DeepSeek v4-pro）
+- 质量 CAPA 草稿
+- 自动校验：数值引用、证据保留、"候选根因"表述、"待人工确认"标记
+
+### 5. 改善项闭环
+
+- 状态汇总（Open / In Progress / Closed）
+- 逾期识别、复发检测
+- GoMask 的 resolution_actions 自动派生为改善项
+
+## 数据源能力对比
+
+| 能力 | Maven | GoMask | 智能导入 |
+|------|-------|--------|---------|
+| 停机 Pareto | ✅ | ✅ | ✅ |
+| 相似事件检索 | ❌ 无备注 | ✅ | ✅ 有备注即支持 |
+| 改善措施跟踪 | ❌ | ✅ | ❌ |
+| 设备维度分析 | ❌ | ✅ | ✅ 有字段即支持 |
+| 产品维度分析 | ✅ | ❌ | ✅ 有字段即支持 |
+| Availability | ✅ | ❌ | ✅ 有字段即支持 |
+
+## API 配置
+
+### LLM（DeepSeek，双模型）
+
+| 模型 | 用途 |
+|------|------|
+| `deepseek-v4-flash` | 异常备注标准化、**列名映射** |
+| `deepseek-v4-pro` | IE 周报、CAPA、5Why 草稿生成 |
+
+### Embedding + Reranker（SiliconFlow）
+
+| 模型 | 用途 |
+|------|------|
+| `Qwen/Qwen3-Embedding-4B` | 事件文本向量化（1024 维） |
+| `Qwen/Qwen3-Reranker-4B` | 检索结果精排 |
 
 ## 如何运行
 
@@ -126,7 +120,15 @@ conda activate mfg-review
 或使用 pip：
 
 ```bash
-pip install pandas pydantic pytest python-dotenv pyyaml openpyxl plotly streamlit litellm requests
+pip install pandas pydantic pytest python-dotenv pyyaml openpyxl \
+            fastapi uvicorn python-multipart \
+            litellm requests
+```
+
+前端依赖：
+
+```bash
+cd frontend && npm install
 ```
 
 ### 2. 配置 API
@@ -135,17 +137,25 @@ pip install pandas pydantic pytest python-dotenv pyyaml openpyxl plotly streamli
 cp .env.example .env
 # 编辑 .env，填入：
 #   LLM_API_KEY — DeepSeek API Key
+#   LLM_BASE_URL — DeepSeek API 地址
 #   EMBEDDING_API_KEY — SiliconFlow API Key
 ```
 
 ### 3. 数据已就绪
 
-Maven 数据文件位于 `data/raw/maven/Manufacturing_Line_Productivity.xlsx`
+- Maven：`data/raw/maven/Manufacturing_Line_Productivity.xlsx`
+- GoMask：`data/raw/gomask/manufacturing-machine-downtime-logs.csv`
 
-### 4. 启动应用
+### 4. 启动
 
 ```bash
-streamlit run src/app/streamlit_app.py
+# 终端 1：后端
+python -m uvicorn backend.app:app --reload
+
+# 终端 2：前端
+cd frontend && npm run dev
+
+# 浏览器访问 http://localhost:5173
 ```
 
 ### 5. 运行测试
@@ -154,36 +164,61 @@ streamlit run src/app/streamlit_app.py
 pytest
 ```
 
-## 如何替换成自己的 Excel
+## API 端点
 
-1. 准备 Excel 文件（含停机事件数据）
-2. 编辑 `data/sample/generic_excel_mapping.yaml`，将列名映射到标准字段
-3. 在 Streamlit 应用的「数据源管理」页面选择「通用 Excel」
-4. 上传 Excel 和 YAML 映射文件
+### 数据源
 
-## 测试与验证
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/datasets` | 列出已加载数据集 |
+| POST | `/api/datasets/load` | 加载内置数据源 |
+| POST | `/api/datasets/analyze` | **智能导入 Step1**：分析文件 → 列画像 + LLM 映射建议 |
+| POST | `/api/datasets/import` | **智能导入 Step2**：确认映射 → 清洗 + 导入 |
+| POST | `/api/datasets/upload` | 传统上传（YAML 映射） |
+| GET | `/api/datasets/{id}` | 数据集详情 + capability |
+
+### 指标
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/datasets/{id}/metrics/summary` | 效率摘要 |
+| GET | `/api/datasets/{id}/metrics/pareto` | Top Loss Pareto |
+| GET | `/api/datasets/{id}/metrics/downtime?group_by=` | 分组停机 |
+
+### 检索与报告
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/datasets/{id}/search` | 相似事件检索 |
+| POST | `/api/datasets/{id}/reports/ie-weekly` | IE 周报生成 |
+| POST | `/api/datasets/{id}/reports/capa` | CAPA 草稿生成 |
+| GET | `/api/datasets/{id}/actions` | 改善项列表 |
+| GET | `/api/datasets/{id}/actions/summary` | 改善项汇总 |
+
+## 测试
 
 ```
-61 passed, 6 skipped (skip 为无 EMBEDDING_API_KEY 时的预期行为)
+90 passed, 6 skipped
 ```
+
+skip 为 embedding 相似检索测试（需设置 `EMBEDDING_API_KEY` + `MIRW_LIVE_EMBEDDING_TESTS=1`）。
 
 测试覆盖：
 - Pydantic 模型校验（8 项）
-- Maven 适配器（含真实数据端到端测试）（11 项）
-- GoMask 适配器（含真实数据端到端测试 + impact 解析）（16 项）
+- Maven 适配器（11 项，含真实数据端到端）
+- GoMask 适配器（16 项，含真实数据端到端）
 - Kaggle 适配器（4 项）
-- OEE 计算（4 项）
-- 效率指标（4 项）
-- Pareto 累计比率（6 项）
+- OEE 计算（4 项）| 效率指标（4 项）| Pareto（6 项）
 - 报告 checker（8 项）
-- 相似事件检索（6 项，需设置 EMBEDDING_API_KEY）
+- 相似事件检索（6 项）
+- **数据画像（14 项）**| **列映射+清洗（12 项）**
+- 后端 API（4 项）
 
 ## 项目限制
 
 1. 本项目不是商业级 MES/OEE/QMS 系统。
 2. Maven 数据来自汽水灌装线，GoMask 数据来自多设备制造车间，不代表所有精密制造场景。
-3. Maven 数据不包含班次(Shift)、产出(Output)、良品(Good Output)字段，不支持完整 OEE。
-4. GoMask 数据不包含产品、班次、产出字段，不支持 OEE 和产品维度分析。
-5. 合成异常备注和改善项为 demo synthetic data，不是企业真实数据。
-6. LLM 输出只能作为复盘草稿，不能作为最终工程结论。
-7. 根因和 CAPA 必须由 IE、质量、设备、工艺负责人确认。
+3. 合成异常备注和改善项为 demo synthetic data，不是企业真实数据。
+4. LLM 输出只能作为复盘草稿，不能作为最终工程结论。
+5. 根因和 CAPA 必须由 IE、质量、设备、工艺负责人确认。
+6. 脏数据导入的 LLM 映射建议需要用户确认，系统不会自动执行。
