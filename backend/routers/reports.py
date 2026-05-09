@@ -52,10 +52,16 @@ def download_report(dataset_id: str, report_id: str):
     """下载单份报告为 markdown。"""
     report = store.get_report(dataset_id, report_id)
     if report is None:
-        raise HTTPException(status_code=404, detail="报告不存在")
+        raise HTTPException(status_code=404, detail="报告不存在，请重新生成")
 
-    markdown = report.get("report_markdown", "")
-    filename = f"{report.get('report_type', 'report')}_{report.get('period', '')}_{report_id}.md"
+    markdown = report.get("report_markdown") or ""
+    if not isinstance(markdown, str):
+        markdown = str(markdown)
+
+    report_type = str(report.get("report_type", "report")).replace("/", "_")
+    period = str(report.get("period", "")).replace("/", "_")
+    filename = f"{report_type}_{period}_{report_id}.md"
+
     return StreamingResponse(
         io.BytesIO(markdown.encode("utf-8")),
         media_type="text/markdown; charset=utf-8",
