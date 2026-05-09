@@ -4,6 +4,18 @@ import ReactMarkdown from 'react-markdown';
 import DatasetHeader, { MissingDataset } from '../components/DatasetHeader';
 import { getDataset } from '../api/datasets';
 import { generateIeWeekly, generateCapa, getReportHistory, getReportDownloadUrl } from '../api/reports';
+
+function downloadFile(url: string, filename: string) {
+  fetch(url)
+    .then(res => res.blob())
+    .then(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+}
 import type { DatasetSummary, ReportResponse, ReportHistoryItem } from '../types';
 
 type ReportTab = 'ie-weekly' | 'capa';
@@ -157,8 +169,8 @@ export default function ReportPage() {
                 <div className="flex gap-2">
                   <button onClick={() => setViewingHistory(h)}
                     className="px-3 py-1 rounded text-xs bg-slate-100 text-slate-600 hover:bg-slate-200">查看</button>
-                  <a href={getReportDownloadUrl(datasetId, h.report_id)} download
-                    className="px-3 py-1 rounded text-xs bg-blue-50 text-blue-600 hover:bg-blue-100">下载 .md</a>
+                  <button onClick={() => downloadFile(getReportDownloadUrl(datasetId, h.report_id), `${h.report_type}_${h.period}.md`)}
+                    className="px-3 py-1 rounded text-xs bg-blue-50 text-blue-600 hover:bg-blue-100">下载 .md</button>
                 </div>
               </div>
             ))}

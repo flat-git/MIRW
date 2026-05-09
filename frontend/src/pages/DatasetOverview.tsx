@@ -2,6 +2,18 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import DatasetHeader, { MissingDataset } from '../components/DatasetHeader';
 import { getDataset, getExcelDownloadUrl, getAnalysisReportDownloadUrl } from '../api/datasets';
+
+function downloadFile(url: string, filename: string) {
+  fetch(url)
+    .then(res => res.blob())
+    .then(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+}
 import type { DatasetSummary } from '../types';
 
 export default function DatasetOverview() {
@@ -33,14 +45,14 @@ export default function DatasetOverview() {
       </div>
 
       <div className="flex gap-3 mb-6">
-        <a href={getExcelDownloadUrl(summary.dataset_id)} download
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border rounded-lg text-sm text-slate-700 hover:bg-slate-50">
+        <button onClick={() => downloadFile(getExcelDownloadUrl(summary.dataset_id), `${summary.source}_${summary.dataset_id}.xlsx`)}
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border rounded-lg text-sm text-slate-700 hover:bg-slate-50 cursor-pointer">
           📊 下载 Excel (.xlsx)
-        </a>
-        <a href={getAnalysisReportDownloadUrl(summary.dataset_id)} download
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border rounded-lg text-sm text-slate-700 hover:bg-slate-50">
+        </button>
+        <button onClick={() => downloadFile(getAnalysisReportDownloadUrl(summary.dataset_id), `${summary.source}_${summary.dataset_id}_analysis.md`)}
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border rounded-lg text-sm text-slate-700 hover:bg-slate-50 cursor-pointer">
           📄 下载分析报告 (.md)
-        </a>
+        </button>
       </div>
 
       <div className="grid grid-cols-3 gap-6 mb-6">
