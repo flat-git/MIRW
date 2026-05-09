@@ -84,3 +84,11 @@ export async function importFile(
   });
   return data;
 }
+
+export function getExcelDownloadUrl(datasetId: string): string {
+  return `/api/datasets/${datasetId}/download/excel`;
+}
+
+export function getAnalysisReportDownloadUrl(datasetId: string): string {
+  return `/api/datasets/${datasetId}/download/report`;
+}

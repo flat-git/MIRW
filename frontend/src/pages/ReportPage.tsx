@@ -3,8 +3,8 @@ import { useParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import DatasetHeader, { MissingDataset } from '../components/DatasetHeader';
 import { getDataset } from '../api/datasets';
-import { generateIeWeekly, generateCapa } from '../api/reports';
-import type { DatasetSummary, ReportResponse } from '../types';
+import { generateIeWeekly, generateCapa, getReportHistory, getReportDownloadUrl } from '../api/reports';
+import type { DatasetSummary, ReportResponse, ReportHistoryItem } from '../types';
 
 type ReportTab = 'ie-weekly' | 'capa';
 
@@ -14,12 +14,15 @@ export default function ReportPage() {
   const [tab, setTab] = useState<ReportTab>('ie-weekly');
   const [period, setPeriod] = useState('当前导入数据集');
   const [reports, setReports] = useState<Partial<Record<ReportTab, ReportResponse>>>({});
+  const [history, setHistory] = useState<ReportHistoryItem[]>([]);
+  const [viewingHistory, setViewingHistory] = useState<ReportHistoryItem | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [missing, setMissing] = useState(false);
 
   useEffect(() => {
     getDataset(datasetId).then(setDataset).catch(() => setMissing(true));
+    getReportHistory(datasetId).then(setHistory).catch(() => {});
   }, [datasetId]);
 
   const handleGenerate = async () => {
@@ -30,6 +33,7 @@ export default function ReportPage() {
         ? await generateIeWeekly(datasetId, period)
         : await generateCapa(datasetId, period);
       setReports((prev) => ({ ...prev, [tab]: r }));
+      getReportHistory(datasetId).then(setHistory).catch(() => {});
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : '生成失败');
     } finally {
@@ -101,6 +105,63 @@ export default function ReportPage() {
                 ))}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 查看历史报告 */}
+      {viewingHistory && (
+        <div className="mt-6 grid grid-cols-3 gap-6">
+          <div className="col-span-2 bg-white rounded-lg border p-6 overflow-auto max-h-[60vh]">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-slate-700">{viewingHistory.report_type} · {viewingHistory.period}</h3>
+              <button onClick={() => setViewingHistory(null)} className="text-slate-400 hover:text-slate-600 text-sm">关闭</button>
+            </div>
+            <div className="markdown-body">
+              <ReactMarkdown>{viewingHistory.report_markdown}</ReactMarkdown>
+            </div>
+          </div>
+          <div>
+            <div className="bg-white rounded-lg border p-4">
+              <h3 className="font-semibold text-slate-700 mb-3">报告校验</h3>
+              {Object.entries(viewingHistory.check_result).map(([key, val]) => (
+                <div key={key} className="flex items-center gap-2 text-sm mb-1">
+                  <span className={val ? 'text-green-500' : 'text-red-400'}>{val ? '✓' : '×'}</span>
+                  <span className="text-slate-600 text-xs">{key}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 历史报告列表 */}
+      {history.length > 0 && (
+        <div className="mt-6">
+          <h3 className="font-semibold text-slate-700 mb-3">历史报告</h3>
+          <div className="space-y-2">
+            {history.map((h) => (
+              <div key={h.report_id} className="bg-white border rounded-lg p-3 flex items-center justify-between">
+                <div>
+                  <span className="text-sm font-medium text-slate-800">{h.report_type}</span>
+                  <span className="text-xs text-slate-500 ml-2">{h.period}</span>
+                  <span className="text-xs text-slate-400 ml-2">{new Date(h.generated_at).toLocaleString()}</span>
+                  <div className="flex gap-2 mt-1">
+                    {Object.entries(h.check_result).slice(0, 3).map(([k, v]) => (
+                      <span key={k} className={`text-xs ${v ? 'text-green-500' : 'text-red-400'}`}>
+                        {v ? '✓' : '×'} {k}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setViewingHistory(h)}
+                    className="px-3 py-1 rounded text-xs bg-slate-100 text-slate-600 hover:bg-slate-200">查看</button>
+                  <a href={getReportDownloadUrl(datasetId, h.report_id)} download
+                    className="px-3 py-1 rounded text-xs bg-blue-50 text-blue-600 hover:bg-blue-100">下载 .md</a>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

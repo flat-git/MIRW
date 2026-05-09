@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import DatasetHeader, { MissingDataset } from '../components/DatasetHeader';
-import { getDataset } from '../api/datasets';
+import { getDataset, getExcelDownloadUrl, getAnalysisReportDownloadUrl } from '../api/datasets';
 import type { DatasetSummary } from '../types';
 
 export default function DatasetOverview() {
@@ -30,6 +30,17 @@ export default function DatasetOverview() {
         <Stat label="总停机" value={`${efficiency?.total_downtime_min ?? 0} min`} />
         <Stat label="停机比率" value={efficiency?.downtime_ratio != null ? `${(efficiency.downtime_ratio * 100).toFixed(1)}%` : 'N/A'} />
         <Stat label="产线效率" value={efficiency?.line_efficiency != null ? `${(efficiency.line_efficiency * 100).toFixed(1)}%` : 'N/A'} />
+      </div>
+
+      <div className="flex gap-3 mb-6">
+        <a href={getExcelDownloadUrl(summary.dataset_id)} download
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border rounded-lg text-sm text-slate-700 hover:bg-slate-50">
+          📊 下载 Excel (.xlsx)
+        </a>
+        <a href={getAnalysisReportDownloadUrl(summary.dataset_id)} download
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border rounded-lg text-sm text-slate-700 hover:bg-slate-50">
+          📄 下载分析报告 (.md)
+        </a>
       </div>
 
       <div className="grid grid-cols-3 gap-6 mb-6">

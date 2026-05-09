@@ -102,6 +102,15 @@ export interface ReportResponse {
   check_result: Record<string, boolean>;
 }
 
+export interface ReportHistoryItem {
+  report_id: string;
+  report_type: string;
+  period: string;
+  report_markdown: string;
+  check_result: Record<string, boolean>;
+  generated_at: string;
+}
+
 export interface ActionItem {
   action_id: string;
   related_event_id?: string;

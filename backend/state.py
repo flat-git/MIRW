@@ -16,6 +16,7 @@ class DatasetStore:
 
     _datasets: dict[str, dict] = {}
     _search_indexes: dict[str, SimilarEventRetriever] = {}
+    _reports: dict[str, list[dict]] = {}  # dataset_id → [report, ...]
     _lock = Lock()
 
     @classmethod
@@ -75,6 +76,31 @@ class DatasetStore:
             retriever.build_from_dataframe(ds["events_df"])
             cls._search_indexes[dataset_id] = retriever
         return cls._search_indexes[dataset_id]
+
+    @classmethod
+    def store_report(cls, dataset_id: str, report: dict) -> dict:
+        """保存生成的报告到历史记录。"""
+        report_id = uuid.uuid4().hex[:8]
+        report["report_id"] = report_id
+        report["generated_at"] = datetime.now().isoformat()
+        with cls._lock:
+            if dataset_id not in cls._reports:
+                cls._reports[dataset_id] = []
+            cls._reports[dataset_id].append(report)
+        return report
+
+    @classmethod
+    def list_reports(cls, dataset_id: str) -> list[dict]:
+        """获取数据集的报告历史。"""
+        return cls._reports.get(dataset_id, [])
+
+    @classmethod
+    def get_report(cls, dataset_id: str, report_id: str) -> dict | None:
+        """获取单份报告。"""
+        for r in cls._reports.get(dataset_id, []):
+            if r.get("report_id") == report_id:
+                return r
+        return None
 
     @classmethod
     def generate_id(cls) -> str:
